@@ -18,21 +18,6 @@
 #include "OL/CLASS.h"
 #include "OL/ASSERT.h"
 
-OL_array_new(OAP_option_keys, char*);
-
-typedef struct {
-    char *id;
-    char *description;
-    OAP_option_keys *keys;
-    char *value_description;
-    char *value_brief;
-    char *value_default;
-    char *value;
-    bool required;
-    bool value_required;
-    bool hidden;
-} OAP_option;
-
 OL_ctor(OAP_option) {
     OAP_option *option = malloc(sizeof(OAP_option));
     option->keys = OL_new(OAP_option_keys);
@@ -119,15 +104,6 @@ OL_setter(OAP_option, hidden, bool) {
     it->hidden = hidden;
 }
 
-typedef struct {
-    char *id;
-    char *value_description;
-    char *value_brief;
-    char *value_default;
-    char *value;
-    bool required;
-} OAP_argument;
-
 OL_ctor(OAP_argument) {
     OAP_argument *argument = malloc(sizeof(OAP_argument));
     return argument;
@@ -171,18 +147,6 @@ OL_setter(OAP_argument, value_brief, char*) {
 OL_setter(OAP_argument, required, bool) {
     it->required = required;
 }
-
-OL_map_new(OAP_options, OAP_option);
-OL_map_new(OAP_arguments, OAP_argument);
-
-typedef struct {
-    char *program;
-    char *program_name;
-    char *program_version;
-    char *program_description;
-    OAP_options *options;
-    OAP_arguments *arguments;
-} OAP;
 
 OL_setter(OAP, program, char*) {
     if (OL_is_not_null_ptr(program)) {
@@ -283,8 +247,8 @@ char *OAP_getopt(OAP *parser, char *id) {
     return ((OAP_option*)OAP_options_get(parser->options, id))->value;
 }
 
-void OAP_getarg(OAP *parser, char *id) {
-
+char *OAP_getarg(OAP *parser, char *id) {
+    return ((OAP_argument*)OAP_arguments_get(parser->arguments, id))->value;
 }
 
 bool OAP_is(char *value, char *needle) {
@@ -305,7 +269,9 @@ void OAP_version(OAP *parser) {
     exit(0);
 }
 
-void OAP_usage(OAP *parser, OAP_options_node **options_iterator, OAP_arguments_node **arguments_iterator) {
+void OAP_usage(OAP *parser) {
+    OAP_options_node **options_iterator = OAP_options_iter(parser->options);
+    OAP_arguments_node **arguments_iterator = OAP_arguments_iter(parser->arguments);
     printf("Usage: ");
     printf("%s", parser->program_name);
     for (size_t i = 0; i != OAP_options_len(parser->options); i++) {
@@ -350,7 +316,9 @@ void OAP_usage(OAP *parser, OAP_options_node **options_iterator, OAP_arguments_n
     exit(0);
 }
 
-void OAP_help(OAP *parser, OAP_options_node **options_iterator, OAP_arguments_node **arguments_iterator) {
+void OAP_help(OAP *parser) {
+    OAP_options_node **options_iterator = OAP_options_iter(parser->options);
+    OAP_arguments_node **arguments_iterator = OAP_arguments_iter(parser->arguments);
     printf("Program: ");
     if (OL_is_not_null_ptr(parser->program_name)) {
         printf("%s", parser->program_name);
@@ -366,6 +334,24 @@ void OAP_help(OAP *parser, OAP_options_node **options_iterator, OAP_arguments_no
             printf(": no description.\n");
     }
     printf("\n");
+    printf("Arguments:");
+    if (OAP_arguments_len(parser->arguments) > 0) {
+        for (size_t i = 0; i != OAP_arguments_len(parser->arguments); i++) {
+            if (arguments_iterator[i] != NULL) {
+                OAP_arguments_node *argument_node = arguments_iterator[i];
+                OAP_argument *argument = argument_node->val;
+                printf(" ");
+                if (!argument->required)
+                    printf("[");
+                printf("%s",  argument->value_brief);
+                if (!argument->required)
+                    printf("]");
+            }
+        }
+        printf("\n");
+    } else {
+        printf(" no arguments\n");
+    }
     printf("Options:\n");
     for (size_t i = 0; i != OAP_options_len(parser->options); i++) {
         if (options_iterator[i] != NULL) {
@@ -416,8 +402,8 @@ void OAP_help(OAP *parser, OAP_options_node **options_iterator, OAP_arguments_no
     exit(0);
 }
 
-void OAP_option_parse(OAP *parser, char *argument, OAP_options_node **options_iterator, OAP_arguments_node **arguments_iterator) {
-    OAP_option *option = NULL;
+void OAP_option_parse(OAP *parser, char *argument_string) {
+    OAP_options_node **options_iterator = OAP_options_iter(parser->options);
     for (size_t i = 0; i != OAP_options_len(parser->options); i++) {
         if (options_iterator[i] != NULL) {
             OAP_options_node *option_node = options_iterator[i];
@@ -428,14 +414,14 @@ void OAP_option_parse(OAP *parser, char *argument, OAP_options_node **options_it
                 char *_maybe_option_key = maybe_option_keys_iterator[j];
                 char *maybe_option_key = malloc(strlen(_maybe_option_key)+2);
                 sprintf(maybe_option_key, "/%s", _maybe_option_key);
-                char *argument_key = strdup(argument);
+                char *argument_key = strdup(argument_string);
                 char *argument_value;
                 if ((argument_value = strchr(argument_key, ':')) != NULL)
                     *argument_value = 0;
                 if (strncmp(argument_key, maybe_option_key, strlen(argument_key)) == 0) {
                     char *option_key_value;
                     if (OL_is_not_null_ptr(maybe_option->value_brief)) {
-                        if (OL_is_not_null_ptr((option_key_value = strstr(argument, ":")))) {
+                        if (OL_is_not_null_ptr((option_key_value = strstr(argument_string, ":")))) {
                             option_key_value++;
                             OAP_option_set_value(maybe_option, option_key_value);
                         } else {
@@ -458,6 +444,20 @@ void OAP_option_parse(OAP *parser, char *argument, OAP_options_node **options_it
     }
 }
 
+void OAP_argument_parse(OAP *parser, char *argument_string) {
+    OAP_arguments_node **arguments_iterator = OAP_arguments_iter(parser->arguments);
+    for (size_t i = 0; i != OAP_arguments_len(parser->arguments); i++) {
+        if (arguments_iterator[i] != NULL) {
+            OAP_arguments_node *argument_node = arguments_iterator[i];
+            OAP_argument *maybe_argument = argument_node->val;
+            if (OL_is_not_null_ptr(maybe_argument))
+                OAP_argument_set_value(maybe_argument, argument_string);
+            OAP_arguments_del(parser->arguments, maybe_argument->id);
+            OAP_arguments_set(parser->arguments, maybe_argument->id, maybe_argument);
+        }
+    }
+}
+
 void OAP_parse(OAP *parser, int argument_count, char **argument_vector) {
     OAP_options_node **options_iterator = OAP_options_iter(parser->options);
     OAP_arguments_node **arguments_iterator = OAP_arguments_iter(parser->arguments);
@@ -470,7 +470,10 @@ void OAP_parse(OAP *parser, int argument_count, char **argument_vector) {
         OAP_addopt(parser, "Get version information.", NULL, NULL, NULL, "version", false, false, false, 2, "V", "Version");    
     if (argument_count > 1) {
         for (int i = 1; i != argument_count; i++) {
-            OAP_option_parse(parser, argument_vector[i], options_iterator, arguments_iterator);
+            if (strncmp(argument_vector[i], "/", 1) == 0) 
+                OAP_option_parse(parser, argument_vector[i]);
+            else
+                OAP_argument_parse(parser, argument_vector[i]);
         }
     } else if (OAP_options_len(parser->options) > 0) {
         for (size_t i = 0; i != OAP_options_len(parser->options); i++) {
@@ -479,15 +482,15 @@ void OAP_parse(OAP *parser, int argument_count, char **argument_vector) {
                 OAP_option *option = option_node->val;
                 if (option->required) {
                     fprintf(stderr, "%s is required\n", option->id);
-                    OAP_usage(parser, options_iterator, arguments_iterator);
+                    OAP_usage(parser);
                 }
             }
         }
     }
     if (OAP_is(OAP_getopt(parser, "usage"), "true"))
-        OAP_usage(parser, options_iterator, arguments_iterator);
+        OAP_usage(parser);
     else if (OAP_is(OAP_getopt(parser, "help"), "true"))
-        OAP_help(parser, options_iterator, arguments_iterator);
+        OAP_help(parser);
     else if (OAP_is(OAP_getopt(parser, "version"), "true"))
         OAP_version(parser);
 }
