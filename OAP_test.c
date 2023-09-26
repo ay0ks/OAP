@@ -9,6 +9,5 @@ int main(int argc, char **argv) {
     OAP_parse(oap, argc, argv);
     OL_del(OAP, oap);
     
-    printf("ab: %s\n", OAP_getopt(oap, "jj"));
-    
+    printf("ab: %s\n", OAP_getopt(oap, "jj"));   
 }

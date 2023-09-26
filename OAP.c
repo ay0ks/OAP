@@ -242,15 +242,6 @@ OL_dtor(OAP) {
     free(it);
 }
 
-size_t _OAP_longest_string_size(size_t count, char **args) {
-    size_t n = 0;
-    for (size_t i = 0; i != count; i++) {
-        size_t s = strlen(args[i]);
-        if (s > n) n = s;
-    }
-    return n;
-}
-
 void OAP_addopt(OAP *parser, char *description, char *value_brief, char *value_description, char *value_default, char *id, bool required, bool value_required, bool hidden, size_t key_count, ...) {
     va_list args;
     char **option_keys = calloc(key_count, sizeof(char*));

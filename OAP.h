@@ -76,7 +76,6 @@ OL_setter(OAP, program_name, char*);
 OL_setter(OAP, program_version, char*);
 OL_setter(OAP, program_description, char*);
 
-size_t _OAP_longest_string_size(size_t count, char **args);
 void OAP_addopt(OAP *parser, char *description, char *value_brief, char *value_description, char *value_default, char *id, bool required, bool value_required, bool hidden, size_t key_count, ...);
 void OAP_addarg(OAP *parser, char *value_brief, char *value_description, char *value_default, char *id, bool required);
 char *OAP_getopt(OAP *parser, char *id);
